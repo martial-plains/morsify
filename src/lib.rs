@@ -1,4 +1,3 @@
-#![warn(clippy::nursery, clippy::pedantic)]
 use std::collections::{BTreeMap, HashMap};
 
 type Characters = BTreeMap<MorseCharacterSet, BTreeMap<String, String>>;
