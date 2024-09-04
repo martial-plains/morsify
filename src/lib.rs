@@ -1,54 +1,143 @@
-use std::collections::BTreeMap;
+//! # Morsify
+//!
+//! Morsify is a Rust crate for encoding and decoding Morse code. It provides a flexible and efficient way to convert
+//! text into Morse code and vice versa, with customizable options for different Morse code representations and character sets.
+//!
+//! ## Features
+//!
+//! - **Encoding**: Convert plain text into Morse code with customizable symbols for dots, dashes, spaces, and separators.
+//! - **Decoding**: Convert Morse code back into readable text using the provided configuration.
+//! - **Customizable Character Sets**: Support for various character sets including Latin, Greek, Cyrillic, Arabic, and others.
+//! - **Configurable Options**: Define how Morse code should be represented with options for symbols and handling invalid characters.
+//!
+//! ## Usage
+//!
+//! To use Morsify, include it in your `Cargo.toml`:
+//!
+//! ```toml
+//! [dependencies]
+//! morsify = "0.1.0"
+//! ```
+//!
+//! Then, use the `MorseCode` struct to encode and decode text. Here’s a basic example:
+//!
+//! ```rust
+//! use morsify::{MorseCode, Options, MorseCharacterSet};
+//!
+//! // Create a new `MorseCode` instance with default options
+//! let options = Options {
+//!     dash: '-',
+//!     dot: '.',
+//!     space: '/',
+//!     separator: ' ',
+//!     invalid_char_callback: |c| c,
+//!     priority: MorseCharacterSet::Latin,
+//! };
+//! let morse_code = MorseCode::new(options);
+//!
+//! // Encode a text message to Morse code
+//! let encoded = morse_code.encode("Hello World");
+//! println!("Encoded: {}", encoded);
+//!
+//! // Decode a Morse code message to text
+//! let decoded = morse_code.decode(".... . .-.. .-.. --- / .-- --- .-. .-.. -..");
+//! println!("Decoded: {}", decoded);
+//! ```
+//!
+//! ## API Documentation
+//!
+//! For detailed information about the API, refer to the module documentation and individual methods of the `MorseCode` struct.
+//!
+//! ## License
+//!
+//! Morsify is licensed under the MIT License. See the `LICENSE` file for more details.
 
+#![no_std]
+
+use alloc::{
+    collections::btree_map::BTreeMap,
+    string::{String, ToString},
+};
+extern crate alloc;
+
+/// A type alias for a map that associates Morse code characters with their string representations.
+///
+/// This alias defines a `BTreeMap` where:
+/// - The key is a `MorseCharacterSet`, which represents a specific set or category of Morse code characters.
+/// - The value is another `BTreeMap`, where:
+///   - The key is a `char` representing a single character.
+///   - The value is a `String` providing the string representation or description of the Morse code character.
+///
+/// This structure supports efficient storage and retrieval of Morse code characters and their associated string descriptions.
+/// The use of `BTreeMap` ensures that the data is kept in sorted order, enabling efficient lookups.
 type Characters = BTreeMap<MorseCharacterSet, BTreeMap<char, String>>;
 
-/// Represents different character sets that can be used in Morse code.
+/// Enumerates the different character sets used in Morse code.
+///
+/// Each variant represents a specific alphabet or character set that can be encoded or decoded.
+/// The variants include common scripts as well as less common ones.
+///
+/// /// For more information about each character set, you can refer to the following links:
+///
+/// - [Latin Alphabet](https://en.wikipedia.org/wiki/Morse_code)
+/// - [Extended Latin Characters](https://ham.stackexchange.com/questions/1379/international-characters-in-morse-code)
+/// - [Cyrillic Alphabet](https://en.wikipedia.org/wiki/Russian_Morse_code)
+/// - [Greek Alphabet](https://en.wikipedia.org/wiki/Morse_code_for_non-Latin_alphabets)
+/// - [Hebrew Alphabet](https://en.wikipedia.org/wiki/Morse_code_for_non-Latin_alphabets)
+/// - [Arabic Alphabet](https://en.wikipedia.org/wiki/Morse_code_for_non-Latin_alphabets)
+/// - [Persian Alphabet](https://en.wikipedia.org/wiki/Morse_code_for_non-Latin_alphabets)
+/// - [Japanese Characters](https://ja.wikipedia.org/wiki/%E3%83%A2%E3%83%BC%E3%83%AB%E3%82%B9%E7%AC%A6%E5%8F%B7#%E5%92%8C%E6%96%87%E3%83%A2%E3%83%BC%E3%83%AB%E3%82%B9%E7%AC%A6%E5%8F%B7)
+/// - [Korean Characters](https://en.wikipedia.org/wiki/SKATS)
+/// - [Thai Characters](https://th.wikipedia.org/wiki/รหัสมอร์ส)
 #[repr(usize)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum MorseCharacterSet {
-    /// Undefined character set.
+    /// Represents an undefined character set.
     Undefined,
-    /// Latin alphabet.
+    /// Represents the Latin alphabet.
     Latin,
-    /// Numbers.
+    /// Represents numerical digits.
     Numbers,
-    /// Punctuation marks.
+    /// Represents punctuation marks.
     Punctuation,
-    /// Extended Latin alphabet.
+    /// Represents extended Latin characters.
     LatinExtended,
-    /// Cyrillic alphabet.
+    /// Represents the Cyrillic alphabet.
     Cyrillic,
-    /// Greek alphabet.
+    /// Represents the Greek alphabet.
     Greek,
-    /// Hebrew alphabet.
+    /// Represents the Hebrew alphabet.
     Hebrew,
-    /// Arabic alphabet.
+    /// Represents the Arabic alphabet.
     Arabic,
-    /// Persian alphabet.
+    /// Represents the Persian alphabet.
     Persian,
-    /// Japanese characters.
+    /// Represents Japanese characters.
     Japanese,
-    /// Korean characters.
+    /// Represents Korean characters.
     Korean,
-    /// Thai characters.
+    /// Represents Thai characters.
     Thai,
 }
 
-/// Options for encoding and decoding Morse code.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd)]
+/// Contains options for encoding and decoding Morse code.
+///
+/// This struct allows customization of Morse code encoding and decoding by specifying the characters used
+/// for dashes, dots, spaces, separators, and invalid characters, as well as a priority character set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Options {
-    /// String representation of a dash.
+    /// Character used to represent a dash in Morse code.
     pub dash: char,
-    /// String representation of a dot.
+    /// Character used to represent a dot in Morse code.
     pub dot: char,
-    /// String representation of a space between words.
+    /// Character used to represent a space between words in Morse code.
     pub space: char,
-    /// String representation of a separator between characters.
+    /// Character used to separate Morse code characters.
     pub separator: char,
-    /// String representation of an invalid character.
-    pub invalid: char,
-    /// Priority character set for encoding.
+    /// Priority character set to use for encoding.
     pub priority: MorseCharacterSet,
+    /// A function used to get represented an invalid Morse code character.
+    pub invalid_char_callback: fn(char) -> char,
 }
 
 impl Default for Options {
@@ -58,102 +147,196 @@ impl Default for Options {
             dot: '.',
             space: '/',
             separator: ' ',
-            invalid: '#',
+            invalid_char_callback: |c| c,
             priority: MorseCharacterSet::Latin,
         }
     }
 }
 
-/// Encodes a given text into Morse code using the specified options.
+/// A struct to manage Morse code operations including encoding and decoding.
 ///
-/// # Arguments
-///
-/// * `text` - The text to encode.
-/// * `options` - The options to use for encoding.
-///
-/// # Returns
-///
-/// A `String` containing the encoded Morse code.
-pub fn encode(text: &str, options: &Options) -> String {
-    let characters = get_characters(options);
+/// This struct holds options and character mappings required for encoding and decoding Morse code.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct MorseCode {
+    /// Configuration options for encoding and decoding Morse code.
+    ///
+    /// This field specifies how Morse code should be represented, including the symbols used for dots, dashes,
+    /// spaces, separators, and handling invalid characters. It also defines the priority character set to use.
+    options: Options,
 
-    let mut result = String::new();
+    /// A map of Morse code characters and their string representations.
+    ///
+    /// This field contains a `BTreeMap` where each key is a `MorseCharacterSet` indicating a specific set or category
+    /// of Morse code characters, and each value is another `BTreeMap` mapping individual Morse code characters to their
+    /// string representations or descriptions. This structure supports efficient storage and retrieval of Morse code data.
+    characters: Characters,
+}
 
-    let processed_text = text
-        .replace(char::is_whitespace, &options.separator.to_string())
-        .trim()
-        .to_uppercase();
+impl Default for MorseCode {
+    fn default() -> Self {
+        let options = Options::default();
+        Self {
+            options,
+            characters: get_characters(options),
+        }
+    }
+}
 
-    for character in processed_text.chars() {
-        let mut found = false;
-        for set in characters.values() {
-            if let Some(encoded) = set.get(&character) {
-                result.push_str(encoded);
-                found = true;
-                break;
+impl MorseCode {
+    /// Creates a new `MorseCode` instance with the given options.
+    ///
+    /// # Arguments
+    ///
+    /// * `options` - The options to use for encoding and decoding Morse code.
+    ///
+    /// # Returns
+    ///
+    /// A `MorseCode` instance configured with the provided options.
+    #[must_use]
+    pub fn new(options: Options) -> Self {
+        let characters = get_characters(options);
+        MorseCode {
+            options,
+            characters,
+        }
+    }
+
+    /// Encodes the given text into Morse code using the struct’s options.
+    ///
+    /// # Arguments
+    ///
+    /// * `text` - The text to encode.
+    ///
+    /// # Returns
+    ///
+    /// A `String` containing the encoded Morse code.
+    pub fn encode<S: AsRef<str>>(&self, text: S) -> String {
+        let mut result = String::new();
+
+        let processed_text = text
+            .as_ref()
+            .replace(char::is_whitespace, &self.options.separator.to_string())
+            .trim()
+            .to_uppercase();
+
+        for character in processed_text.chars() {
+            let mut found = false;
+            for set in self.characters.values() {
+                if let Some(encoded) = set.get(&character) {
+                    result.push_str(encoded);
+                    found = true;
+                    break;
+                }
             }
+            if !found {
+                (self.options.invalid_char_callback)(character);
+                result.push((self.options.invalid_char_callback)(character));
+            }
+            result.push(self.options.separator);
         }
-        if !found {
-            result.push(options.invalid);
+
+        result = result
+            .replace('0', &self.options.dot.to_string())
+            .replace('1', &self.options.dash.to_string());
+
+        if !result.is_empty() && result.ends_with(&self.options.separator.to_string()) {
+            result.pop();
         }
-        result.push(options.separator);
+
+        result
     }
 
-    result = result
-        .replace('0', &options.dot.to_string())
-        .replace('1', &options.dash.to_string());
+    /// Decodes the given Morse code string into text using the struct’s options.
+    ///
+    /// # Arguments
+    ///
+    /// * `morse` - The Morse code string to decode.
+    ///
+    /// # Returns
+    ///
+    /// A `String` containing the decoded text.
+    pub fn decode(&self, morse: &str) -> String {
+        let swapped = swap_characters(self.options);
 
-    if !result.is_empty() && result.ends_with(&options.separator.to_string()) {
-        result.pop();
+        morse
+            .replace(char::is_whitespace, &self.options.separator.to_string()) // Replace whitespace with separator
+            .trim() // Trim leading and trailing whitespace
+            .split(self.options.separator) // Split by the separator
+            .map(|characters| {
+                swapped
+                    .get(characters)
+                    .copied()
+                    .map_or_else(|| characters.to_string(), |c| c.to_string())
+            })
+            .collect::<String>() // Collect into a single String
     }
-
-    result
 }
 
-/// Retrieves the characters mapping based on the given options.
+/// Generates a complete set of Morse code characters for various languages and symbols.
 ///
-/// # Arguments
-///
-/// * `options` - The options to use for retrieving characters.
-/// * `use_priority` - Whether to use the priority character set.
-///
-/// # Returns
-///
-/// A `Characters` struct containing the mapped characters.
-#[must_use]
-pub fn characters(options: &Options, use_priority: bool) -> Characters {
-    get_mapped_characters(options, use_priority)
-}
-
-/// Decodes a given Morse code string into text using the specified options.
-///
-/// # Arguments
-///
-/// * `morse` - The Morse code string to decode.
-/// * `options` - The options to use for decoding.
-///
-/// # Returns
-///
-/// A `String` containing the decoded text.
-pub fn decode(morse: &str, options: &Options) -> String {
-    let swapped = swap_characters(options);
-
-    morse
-        .replace(char::is_whitespace, &options.separator.to_string()) // Replace whitespace with separator
-        .trim() // Trim leading and trailing whitespace
-        .split(&options.separator.to_string()) // Split by the separator
-        .map(|characters| {
-            swapped
-                .get(characters)
-                .unwrap_or(&options.invalid.to_string())
-                .clone()
-        })
-        .collect::<String>() // Collect into a single String
-}
-
+/// This function creates and returns a `Characters` mapping that includes Morse code representations
+/// for Latin, numbers, punctuation, Latin extended characters, Cyrillic, Greek, Hebrew, Arabic,
+/// Persian, Japanese, Korean, and Thai characters. Each set of characters is stored in a `BTreeMap`
+/// and organized by the type of Morse character set.
 fn base_characters() -> Characters {
     let mut characters = BTreeMap::new();
-    // Latin Morse code
+    let latin = latin_chars();
+    characters.insert(MorseCharacterSet::Latin, latin);
+
+    let numbers = numbers_chars();
+    characters.insert(MorseCharacterSet::Numbers, numbers);
+
+    let punctuation = punctuation_chars();
+    characters.insert(MorseCharacterSet::Punctuation, punctuation);
+
+    let latin_extended = latin_extended_chars();
+    characters.insert(MorseCharacterSet::LatinExtended, latin_extended);
+
+    let cyrillic = cyrillic_chars();
+    characters.insert(MorseCharacterSet::Cyrillic, cyrillic);
+
+    let greek = greek_chars();
+    characters.insert(MorseCharacterSet::Greek, greek);
+
+    let hebrew = hebrew_chars();
+    characters.insert(MorseCharacterSet::Hebrew, hebrew);
+
+    let arabic = arabic_chars();
+    characters.insert(MorseCharacterSet::Arabic, arabic);
+
+    let persian = persian_chars();
+    characters.insert(MorseCharacterSet::Persian, persian);
+
+    let japanese = japanese_chars();
+    characters.insert(MorseCharacterSet::Japanese, japanese);
+
+    let korean = korean_chars();
+    characters.insert(MorseCharacterSet::Korean, korean);
+
+    let thai = thai_chars();
+    characters.insert(MorseCharacterSet::Thai, thai);
+
+    characters
+        .into_iter()
+        .map(|(charset, char_map)| {
+            (
+                charset,
+                char_map
+                    .into_iter()
+                    .map(|(char, morse_code)| (char, morse_code.to_string()))
+                    .collect(),
+            )
+        })
+        .collect::<Characters>()
+}
+/// Returns a `BTreeMap` of Morse code representations for Latin characters.
+///
+/// This function provides the Morse code mappings for Latin alphabet characters, where each key is a Latin character
+/// and each value is its Morse code representation.
+///
+/// # Returns
+/// A `BTreeMap` with Latin characters as keys and their Morse code representations as values.
+fn latin_chars<'a>() -> BTreeMap<char, &'a str> {
     let mut latin = BTreeMap::new();
     latin.insert('A', "01");
     latin.insert('B', "1000");
@@ -181,10 +364,16 @@ fn base_characters() -> Characters {
     latin.insert('X', "1001");
     latin.insert('Y', "1011");
     latin.insert('Z', "1100");
+    latin
+}
 
-    characters.insert(MorseCharacterSet::Latin, latin);
-
-    // Numbers Morse code
+/// Returns a `BTreeMap` of Morse code representations for digits (0-9).
+///
+/// This function provides the Morse code mappings for numeric digits, where each key is a digit and each value is its Morse code representation.
+///
+/// # Returns
+/// A `BTreeMap` with digits as keys and their Morse code representations as values.
+fn numbers_chars<'a>() -> BTreeMap<char, &'a str> {
     let mut numbers = BTreeMap::new();
     numbers.insert('0', "11111");
     numbers.insert('1', "01111");
@@ -196,10 +385,17 @@ fn base_characters() -> Characters {
     numbers.insert('7', "11000");
     numbers.insert('8', "11100");
     numbers.insert('9', "11110");
+    numbers
+}
 
-    characters.insert(MorseCharacterSet::Numbers, numbers);
-
-    // Punctuation Morse code
+/// Returns a `BTreeMap` of Morse code representations for punctuation marks.
+///
+/// This function provides the Morse code mappings for various punctuation marks, where each key is a punctuation mark
+/// and each value is its Morse code representation.
+///
+/// # Returns
+/// A `BTreeMap` with punctuation marks as keys and their Morse code representations as values.
+fn punctuation_chars<'a>() -> BTreeMap<char, &'a str> {
     let mut punctuation = BTreeMap::new();
     punctuation.insert('.', "010101");
     punctuation.insert(',', "110011");
@@ -221,10 +417,17 @@ fn base_characters() -> Characters {
     punctuation.insert('@', "011010");
     punctuation.insert('¿', "00101");
     punctuation.insert('¡', "110001");
+    punctuation
+}
 
-    characters.insert(MorseCharacterSet::Punctuation, punctuation);
-
-    // Latin Extended Morse code
+/// Returns a `BTreeMap` of Morse code representations for Latin Extended characters.
+///
+/// This function provides the Morse code mappings for Latin Extended characters, where each key is a Latin Extended character
+/// and each value is its Morse code representation.
+///
+/// # Returns
+/// A `BTreeMap` with Latin Extended characters as keys and their Morse code representations as values.
+fn latin_extended_chars<'a>() -> BTreeMap<char, &'a str> {
     let mut latin_extended = BTreeMap::new();
     latin_extended.insert('Ã', "01101");
     latin_extended.insert('Á', "01101");
@@ -272,10 +475,17 @@ fn base_characters() -> Characters {
     latin_extended.insert('Ž', "11001");
     latin_extended.insert('Ź', "110010");
     latin_extended.insert('Ż', "11001");
+    latin_extended
+}
 
-    characters.insert(MorseCharacterSet::LatinExtended, latin_extended);
-
-    // Cyrillic Morse code
+/// Returns a `BTreeMap` of Morse code representations for Cyrillic characters.
+///
+/// This function provides the Morse code mappings for Cyrillic alphabet characters, where each key is a Cyrillic character
+/// and each value is its Morse code representation.
+///
+/// # Returns
+/// A `BTreeMap` with Cyrillic characters as keys and their Morse code representations as values.
+fn cyrillic_chars<'a>() -> BTreeMap<char, &'a str> {
     let mut cyrillic = BTreeMap::new();
     cyrillic.insert('А', "01");
     cyrillic.insert('Б', "1000");
@@ -313,10 +523,17 @@ fn base_characters() -> Characters {
     cyrillic.insert('Є', "00100");
     cyrillic.insert('І', "00");
     cyrillic.insert('Ґ', "110");
+    cyrillic
+}
 
-    characters.insert(MorseCharacterSet::Cyrillic, cyrillic);
-
-    // Greek Morse code
+/// Returns a `BTreeMap` of Morse code representations for Greek characters.
+///
+/// This function provides the Morse code mappings for Greek alphabet characters, where each key is a Greek character
+/// and each value is its Morse code representation.
+///
+/// # Returns
+/// A `BTreeMap` with Greek characters as keys and their Morse code representations as values.
+fn greek_chars<'a>() -> BTreeMap<char, &'a str> {
     let mut greek = BTreeMap::new();
     greek.insert('Α', "01");
     greek.insert('Β', "1000");
@@ -342,10 +559,17 @@ fn base_characters() -> Characters {
     greek.insert('Χ', "1111");
     greek.insert('Ψ', "1101");
     greek.insert('Ω', "011");
+    greek
+}
 
-    characters.insert(MorseCharacterSet::Greek, greek);
-
-    // Hebrew Morse code
+/// Returns a `BTreeMap` of Morse code representations for Hebrew characters.
+///
+/// This function provides the Morse code mappings for Hebrew script characters, where each key is a Hebrew character
+/// and each value is its Morse code representation.
+///
+/// # Returns
+/// A `BTreeMap` with Hebrew characters as keys and their Morse code representations as values.
+fn hebrew_chars<'a>() -> BTreeMap<char, &'a str> {
     let mut hebrew = BTreeMap::new();
     hebrew.insert('א', "01");
     hebrew.insert('ב', "1000");
@@ -369,10 +593,17 @@ fn base_characters() -> Characters {
     hebrew.insert('ר', "010");
     hebrew.insert('ש', "000");
     hebrew.insert('ת', "1");
+    hebrew
+}
 
-    characters.insert(MorseCharacterSet::Hebrew, hebrew);
-
-    // Arabic Morse code
+/// Returns a `BTreeMap` of Morse code representations for Arabic characters.
+///
+/// This function provides the Morse code mappings for Arabic script characters, where each key is an Arabic character
+/// and each value is its Morse code representation.
+///
+/// # Returns
+/// A `BTreeMap` with Arabic characters as keys and their Morse code representations as values.
+fn arabic_chars<'a>() -> BTreeMap<char, &'a str> {
     let mut arabic = BTreeMap::new();
     arabic.insert('ا', "01");
     arabic.insert('ب', "1000");
@@ -403,10 +634,17 @@ fn base_characters() -> Characters {
     arabic.insert('و', "011");
     arabic.insert('ي', "00");
     arabic.insert('ﺀ', "0");
+    arabic
+}
 
-    characters.insert(MorseCharacterSet::Arabic, arabic);
-
-    // Persian Morse code
+/// Returns a `BTreeMap` of Morse code representations for Persian characters.
+///
+/// This function provides the Morse code mappings for Persian script characters, where each key is a Persian character
+/// and each value is its Morse code representation.
+///
+/// # Returns
+/// A `BTreeMap` with Persian characters as keys and their Morse code representations as values.
+fn persian_chars<'a>() -> BTreeMap<char, &'a str> {
     let mut persian = BTreeMap::new();
     persian.insert('ا', "01");
     persian.insert('ب', "1000");
@@ -440,10 +678,17 @@ fn base_characters() -> Characters {
     persian.insert('و', "011");
     persian.insert('ه', "0");
     persian.insert('ی', "00");
+    persian
+}
 
-    characters.insert(MorseCharacterSet::Persian, persian);
-
-    // Japanese Morse code
+/// Returns a `BTreeMap` of Morse code representations for Japanese characters.
+///
+/// This function provides the Morse code mappings for Japanese Katakana characters, where each key is a Japanese character
+/// and each value is its Morse code representation.
+///
+/// # Returns
+/// A `BTreeMap` with Japanese characters as keys and their Morse code representations as values.
+fn japanese_chars<'a>() -> BTreeMap<char, &'a str> {
     let mut japanese = BTreeMap::new();
     japanese.insert('ア', "11011");
     japanese.insert('カ', "0100");
@@ -500,10 +745,17 @@ fn base_characters() -> Characters {
     japanese.insert('、', "010101");
     japanese.insert('（', "101101");
     japanese.insert('）', "010010");
+    japanese
+}
 
-    characters.insert(MorseCharacterSet::Japanese, japanese);
-
-    // Korean Morse code
+/// Returns a `BTreeMap` of Morse code representations for Korean characters.
+///
+/// This function provides the Morse code mappings for Korean Hangul characters, where each key is a Korean character
+/// and each value is its Morse code representation.
+///
+/// # Returns
+/// A `BTreeMap` with Korean characters as keys and their Morse code representations as values.
+fn korean_chars<'a>() -> BTreeMap<char, &'a str> {
     let mut korean = BTreeMap::new();
     korean.insert('ㄱ', "0100");
     korean.insert('ㄴ', "0010");
@@ -529,10 +781,17 @@ fn base_characters() -> Characters {
     korean.insert('ㅠ', "010");
     korean.insert('ㅡ', "100");
     korean.insert('ㅣ', "001");
+    korean
+}
 
-    characters.insert(MorseCharacterSet::Korean, korean);
-
-    // Thai Morse code
+/// Returns a `BTreeMap` of Morse code representations for Thai characters.
+///
+/// This function provides the Morse code mappings for Thai script characters, where each key is a Thai character
+/// and each value is its Morse code representation.
+///
+/// # Returns
+/// A `BTreeMap` with Thai characters as keys and their Morse code representations as values.   
+fn thai_chars<'a>() -> BTreeMap<char, &'a str> {
     let mut thai = BTreeMap::new();
     thai.insert('ก', "110");
     thai.insert('ข', "1010");
@@ -586,24 +845,20 @@ fn base_characters() -> Characters {
     thai.insert('์', "11001");
     thai.insert('ๆ', "10111");
     thai.insert('ฯ', "11010");
-
-    characters.insert(MorseCharacterSet::Thai, thai);
-
-    characters
-        .into_iter()
-        .map(|(key, value)| {
-            (
-                key,
-                (value
-                    .into_iter()
-                    .map(|(key, value)| (key, value.to_string())))
-                .collect(),
-            )
-        })
-        .collect::<Characters>()
+    thai
 }
 
-fn get_characters(options: &Options) -> Characters {
+/// Retrieves a `Characters` map based on the given `Options` configuration.
+///
+/// This function generates a `Characters` map that includes Morse code representations for various character sets,
+/// incorporating any options specified, such as a priority character set or custom separators and spaces.
+///
+/// # Parameters
+/// - `options`: A configuration object containing options for character sets and Morse code representation.
+///
+/// # Returns
+/// A `Characters` map where each key is a `MorseCharacterSet` and each value is a `BTreeMap` of characters and their Morse code representations.
+fn get_characters(options: Options) -> Characters {
     let base_characters = base_characters();
     let mut characters = base_characters.clone();
 
@@ -623,7 +878,17 @@ fn get_characters(options: &Options) -> Characters {
         .collect::<Characters>()
 }
 
-fn get_mapped_characters(options: &Options, use_priority: bool) -> Characters {
+/// Returns a `Characters` map with Morse code characters mapped to custom symbols based on the given `Options` configuration.
+///
+/// This function generates a `Characters` map by replacing Morse code symbols (dots and dashes) with custom symbols
+/// specified in the `options` configuration.
+///
+/// # Parameters
+/// - `options`: A configuration object containing custom symbols for dots and dashes.
+///
+/// # Returns
+/// A `Characters` map where each key is a `MorseCharacterSet` and each value is a `BTreeMap` of characters and their updated Morse code representations.
+fn get_mapped_characters(options: Options) -> Characters {
     let mut mapped = BTreeMap::new();
     let characters = get_characters(options);
 
@@ -638,22 +903,26 @@ fn get_mapped_characters(options: &Options, use_priority: bool) -> Characters {
         mapped.insert(*set, new_set);
     }
 
-    if !use_priority {
-        mapped.remove(&MorseCharacterSet::Undefined);
-    }
-
     mapped
 }
 
-fn swap_characters(options: &Options) -> BTreeMap<String, String> {
+/// Returns a `BTreeMap` of Morse code representations swapped with their character mappings.
+///
+/// This function generates a mapping where Morse code representations are keys and the corresponding characters are values.
+/// This is useful for reverse lookup of Morse code representations.
+///
+/// # Parameters
+/// - `options`: A configuration object containing custom symbols for dots and dashes.
+///
+/// # Returns
+/// A `BTreeMap` where each key is a Morse code representation and each value is the corresponding character.
+fn swap_characters(options: Options) -> BTreeMap<String, char> {
     let mut swapped = BTreeMap::new();
-    let mapped_characters = get_mapped_characters(options, true);
+    let mapped_characters = get_mapped_characters(options);
 
-    for chars in mapped_characters.values() {
+    for chars in mapped_characters.into_values() {
         for (key, value) in chars {
-            if !swapped.contains_key(value) {
-                swapped.insert(value.to_string(), key.to_string());
-            }
+            swapped.entry(value).or_insert(key);
         }
     }
 
@@ -666,90 +935,82 @@ mod tests {
 
     #[test]
     fn encodes_english_alphabet() {
-        assert_eq!(encode("the quick brown fox jumps over the lazy dog", &Options::default()), "- .... . / --.- ..- .. -.-. -.- / -... .-. --- .-- -. / ..-. --- -..- / .--- ..- -- .--. ... / --- ...- . .-. / - .... . / .-.. .- --.. -.-- / -.. --- --.");
-        assert_eq!(encode("the quick brown fox jumps over the lazy dog", &Options { dash: '–', dot: '•', space: '\\', ..Default::default() }), "– •••• • \\ ––•– ••– •• –•–• –•– \\ –••• •–• ––– •–– –• \\ ••–• ––– –••– \\ •––– ••– –– •––• ••• \\ ––– •••– • •–• \\ – •••• • \\ •–•• •– ––•• –•–– \\ –•• ––– ––•");
+        assert_eq!(MorseCode::default().encode("the quick brown fox jumps over the lazy dog"), "- .... . / --.- ..- .. -.-. -.- / -... .-. --- .-- -. / ..-. --- -..- / .--- ..- -- .--. ... / --- ...- . .-. / - .... . / .-.. .- --.. -.-- / -.. --- --.");
+        assert_eq!(MorseCode::new(Options { dash: '–', dot: '•', space: '\\', ..Default::default() }).encode("the quick brown fox jumps over the lazy dog"), "– •••• • \\ ––•– ••– •• –•–• –•– \\ –••• •–• ––– •–– –• \\ ••–• ––– –••– \\ •––– ••– –– •––• ••• \\ ––– •••– • •–• \\ – •••• • \\ •–•• •– ––•• –•–– \\ –•• ––– ––•");
     }
 
     #[test]
     fn decodes_english_alphabet() {
-        assert_eq!(decode("- .... . / --.- ..- .. -.-. -.- / -... .-. --- .-- -. / ..-. --- -..- / .--- ..- -- .--. ... / --- ...- . .-. / - .... . / .-.. .- --.. -.-- / -.. --- --.", &Options::default()), "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG");
-        assert_eq!(decode("– •••• • \\ ––•– ••– •• –•–• –•– \\ –••• •–• ––– •–– –• \\ ••–• ––– –••– \\ •––– ••– –– •––• ••• \\ ––– •••– • •–• \\ – •••• • \\ •–•• •– ––•• –•–– \\ –•• ––– ––•", &Options {dash: '–', dot: '•', space: '\\',..Default::default()}), "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG");
+        assert_eq!(MorseCode::default().decode("- .... . / --.- ..- .. -.-. -.- / -... .-. --- .-- -. / ..-. --- -..- / .--- ..- -- .--. ... / --- ...- . .-. / - .... . / .-.. .- --.. -.-- / -.. --- --."), "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG");
+        assert_eq!(MorseCode::new(Options {dash: '–', dot: '•', space: '\\',..Default::default()}).decode("– •••• • \\ ––•– ••– •• –•–• –•– \\ –••• •–• ––– •–– –• \\ ••–• ––– –••– \\ •––– ••– –– •––• ••• \\ ––– •••– • •–• \\ – •••• • \\ •–•• •– ––•• –•–– \\ –•• ––– ––•"), "THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG");
     }
 
     #[test]
     fn decodes_numbers() {
         assert_eq!(
-            decode(
-                "----- .---- ..--- ...-- ....- ..... -.... --... ---.. ----.",
-                &Options::default()
-            ),
+            MorseCode::default()
+                .decode("----- .---- ..--- ...-- ....- ..... -.... --... ---.. ----."),
             "0123456789"
         );
     }
 
     #[test]
     fn encodes_punctuation() {
+        let morse_code = MorseCode::default();
         assert_eq!(
-            encode(".,?'!/(", &Options::default()),
+            morse_code.encode(".,?'!/("),
             ".-.-.- --..-- ..--.. .----. -.-.-- -..-. -.--."
         );
         assert_eq!(
-            encode(")&:;=¿¡", &Options::default()),
+            morse_code.encode(")&:;=¿¡"),
             "-.--.- .-... ---... -.-.-. -...- ..-.- --...-"
         );
     }
 
     #[test]
     fn decodes_punctuation() {
+        let morse_code = MorseCode::default();
         assert_eq!(
-            decode(
-                ".-.-.- --..-- ..--.. .----. -.-.-- -..-. -.--.",
-                &Options::default()
-            ),
+            morse_code.decode(".-.-.- --..-- ..--.. .----. -.-.-- -..-. -.--."),
             ".,?'!/("
         );
         assert_eq!(
-            decode(
-                "-.--.- .-... ---... -.-.-. -...- ..-.- --...-",
-                &Options::default()
-            ),
+            morse_code.decode("-.--.- .-... ---... -.-.-. -...- ..-.- --...-"),
             ")&:;=¿¡"
         );
     }
 
     #[test]
     fn encodes_non_english_alphabet() {
+        let morse_code = MorseCode::default();
         assert_eq!(
-            encode("ÃÁÅÀÂÄ", &Options::default()),
+            morse_code.encode("ÃÁÅÀÂÄ"),
             ".--.- .--.- .--.- .--.- .--.- .-.-"
         );
         assert_eq!(
-            encode("ĄÆÇĆĈČ", &Options::default()),
+            morse_code.encode("ĄÆÇĆĈČ"),
             ".-.- .-.- -.-.. -.-.. -.-.. --."
         );
         assert_eq!(
-            encode("ĘÐÈËĘÉ", &Options::default()),
+            morse_code.encode("ĘÐÈËĘÉ"),
             "..-.. ..--. .-..- ..-.. ..-.. ..-.."
         );
         assert_eq!(
-            encode("ÊĞĜĤİÏ", &Options::default()),
+            morse_code.encode("ÊĞĜĤİÏ"),
             "-..-. --.-. --.-. ---- .-..- -..--"
         );
         assert_eq!(
-            encode("ÌĴŁŃÑÓ", &Options::default()),
+            morse_code.encode("ÌĴŁŃÑÓ"),
             ".---. .---. .-..- --.-- --.-- ---."
         );
         assert_eq!(
-            encode("ÒÖÔØŚŞ", &Options::default()),
+            morse_code.encode("ÒÖÔØŚŞ"),
             "---. ---. ---. ---. ...-... .--.."
         );
         assert_eq!(
-            encode("ȘŠŜßÞÜ", &Options::default()),
+            morse_code.encode("ȘŠŜßÞÜ"),
             "---- ---- ...-. ... ... .--.. ..--"
         );
-        assert_eq!(
-            encode("ÙŬŽŹŻ", &Options::default()),
-            "..-- ..-- --..- --..-. --..-"
-        );
+        assert_eq!(morse_code.encode("ÙŬŽŹŻ"), "..-- ..-- --..- --..-. --..-");
     }
 }

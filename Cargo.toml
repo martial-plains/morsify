@@ -1,6 +1,13 @@
 [package]
 name = "morsify"
 version = "0.1.0"
+authors = ["Allister Isaiah Harvey <a.i.harvey@icloud.com>"]
+description = "Easily convert text to Morse code and vice versa."
 edition = "2021"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/martial-plains/morsify"
+keywords = ["morse code", "encoding", "decoding"]
+categories = ["encoding", "text-processing"]
 
 [dependencies]
