@@ -7,8 +7,8 @@
 //!
 //! - **Encoding**: Convert plain text into Morse code with customizable symbols for dots, dashes, spaces, and separators.
 //! - **Decoding**: Convert Morse code back into readable text using the provided configuration.
-//! - **Customizable Character Sets**: Support for various character sets including Latin, Greek, Cyrillic, Arabic, and others.
-//! - **Configurable Options**: Define how Morse code should be represented with options for symbols and handling invalid characters.
+//! - **Customizable Character Sets**: Support for various character sets including Latin, Greek, Cyrillic, Arabic, and others, with customizable order and specific set customizations.
+//! - **Configurable Options**: Define how Morse code should be represented with options for symbols, handling invalid characters, and the order of character sets for encoding/decoding.
 //!
 //! ## Usage
 //!
@@ -16,7 +16,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! morsify = "0.1.0"
+//! morsify = "0.2.0"
 //! ```
 //!
 //! Then, use the `MorseCode` struct to encode and decode text. Here’s a basic example:
@@ -24,14 +24,18 @@
 //! ```rust
 //! use morsify::{MorseCode, Options, MorseCharacterSet};
 //!
-//! // Create a new `MorseCode` instance with default options
+//! // Create a new `MorseCode` instance with customizable options
 //! let options = Options {
 //!     dash: '-',
 //!     dot: '.',
 //!     space: '/',
 //!     separator: ' ',
-//!     invalid_char_callback: |c| c,
-//!     priority: MorseCharacterSet::Latin,
+//!     character_set_order: vec![
+//!         MorseCharacterSet::Latin,
+//!         MorseCharacterSet::Numbers,
+//!         MorseCharacterSet::Punctuation,
+//!         MorseCharacterSet::Greek,
+//!     ],
 //! };
 //! let morse_code = MorseCode::new(options);
 //!
@@ -44,10 +48,24 @@
 //! println!("Decoded: {}", decoded);
 //! ```
 //!
-//! ## API Documentation
+//! ## Customizing the Character Set Order
 //!
-//! For detailed information about the API, refer to the module documentation and individual methods of the `MorseCode` struct.
+//! Morsify allows you to customize the order in which character sets are used for encoding and decoding. You can specify the character sets in the `Options` struct by setting the `character_set_order` field.
 //!
+//! For example, the following code specifies the order for Latin, Numbers, and Punctuation character sets:
+//!
+//! ```rust
+//! let options = Options {
+//!     character_set_order: vec![
+//!         MorseCharacterSet::Latin,
+//!         MorseCharacterSet::Numbers,
+//!         MorseCharacterSet::Punctuation,
+//!     ],
+//!     // Other options can be set here
+//! };
+//! ```
+//!
+//! The `get_characters` function will then respect this order when encoding/decoding the message. Customizations can also be made for specific sets, such as adding separators or mapping specific characters differently for each set.
 //! ## License
 //!
 //! Morsify is licensed under the MIT License. See the `LICENSE` file for more details.
