@@ -55,7 +55,7 @@
 //! For example, the following code specifies the order for Latin, Numbers, and Punctuation character sets:
 //!
 //! ```rust
-//! morsify::MorseCharacterSet;
+//! use morsify::MorseCharacterSet;
 //!
 //! let options = Options {
 //!     character_set_order: vec![
