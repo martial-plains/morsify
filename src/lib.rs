@@ -57,6 +57,7 @@
 use alloc::{
     collections::btree_map::BTreeMap,
     string::{String, ToString},
+    vec::Vec,
 };
 extern crate alloc;
 
@@ -92,8 +93,6 @@ type Characters = BTreeMap<MorseCharacterSet, BTreeMap<char, String>>;
 #[repr(usize)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum MorseCharacterSet {
-    /// Represents an undefined character set.
-    Undefined,
     /// Represents the Latin alphabet.
     Latin,
     /// Represents numerical digits.
@@ -120,11 +119,18 @@ pub enum MorseCharacterSet {
     Thai,
 }
 
+pub trait InvalidCharCallback {
+    // A function used to get represented an invalid Morse code character.
+    fn invalid_char_callback(&self, character: char) -> char {
+        character
+    }
+}
+
 /// Contains options for encoding and decoding Morse code.
 ///
 /// This struct allows customization of Morse code encoding and decoding by specifying the characters used
 /// for dashes, dots, spaces, separators, and invalid characters, as well as a priority character set.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Options {
     /// Character used to represent a dash in Morse code.
     pub dash: char,
@@ -134,10 +140,14 @@ pub struct Options {
     pub space: char,
     /// Character used to separate Morse code characters.
     pub separator: char,
-    /// Priority character set to use for encoding.
-    pub priority: MorseCharacterSet,
-    /// A function used to get represented an invalid Morse code character.
-    pub invalid_char_callback: fn(char) -> char,
+    /// List of `MorseCharacterSet` in user-defined order for encoding/decoding.
+    pub character_set_order: Vec<MorseCharacterSet>,
+}
+
+impl InvalidCharCallback for Options {
+    fn invalid_char_callback(&self, character: char) -> char {
+        character
+    }
 }
 
 impl Default for Options {
@@ -147,8 +157,20 @@ impl Default for Options {
             dot: '.',
             space: '/',
             separator: ' ',
-            invalid_char_callback: |c| c,
-            priority: MorseCharacterSet::Latin,
+            character_set_order: alloc::vec![
+                MorseCharacterSet::Latin,
+                MorseCharacterSet::Numbers,
+                MorseCharacterSet::Punctuation,
+                MorseCharacterSet::LatinExtended,
+                MorseCharacterSet::Cyrillic,
+                MorseCharacterSet::Greek,
+                MorseCharacterSet::Hebrew,
+                MorseCharacterSet::Arabic,
+                MorseCharacterSet::Persian,
+                MorseCharacterSet::Japanese,
+                MorseCharacterSet::Korean,
+                MorseCharacterSet::Thai,
+            ],
         }
     }
 }
@@ -176,8 +198,8 @@ impl Default for MorseCode {
     fn default() -> Self {
         let options = Options::default();
         Self {
-            options,
-            characters: get_characters(options),
+            options: options.clone(),
+            characters: get_characters(&options),
         }
     }
 }
@@ -194,7 +216,7 @@ impl MorseCode {
     /// A `MorseCode` instance configured with the provided options.
     #[must_use]
     pub fn new(options: Options) -> Self {
-        let characters = get_characters(options);
+        let characters = get_characters(&options);
         MorseCode {
             options,
             characters,
@@ -229,8 +251,8 @@ impl MorseCode {
                 }
             }
             if !found {
-                (self.options.invalid_char_callback)(character);
-                result.push((self.options.invalid_char_callback)(character));
+                self.options.invalid_char_callback(character);
+                result.push(self.options.invalid_char_callback(character));
             }
             result.push(self.options.separator);
         }
@@ -256,7 +278,7 @@ impl MorseCode {
     ///
     /// A `String` containing the decoded text.
     pub fn decode(&self, morse: &str) -> String {
-        let swapped = swap_characters(self.options);
+        let swapped = swap_characters(self.options.clone());
 
         morse
             .replace(char::is_whitespace, &self.options.separator.to_string()) // Replace whitespace with separator
@@ -858,18 +880,27 @@ fn thai_chars<'a>() -> BTreeMap<char, &'a str> {
 ///
 /// # Returns
 /// A `Characters` map where each key is a `MorseCharacterSet` and each value is a `BTreeMap` of characters and their Morse code representations.
-fn get_characters(options: Options) -> Characters {
+fn get_characters(options: &Options) -> Characters {
     let base_characters = base_characters();
     let mut characters = base_characters.clone();
 
-    if let Some(priority_set) = base_characters.get(&options.priority) {
-        characters.insert(MorseCharacterSet::Undefined, priority_set.clone());
-    }
+    for &set in &options.character_set_order {
+        if let Some(set_map) = base_characters.get(&set) {
+            match set {
+                MorseCharacterSet::Latin => {
+                    let mut new_set = set_map.clone();
+                    new_set.insert(options.separator, options.space.to_string());
+                    characters.insert(MorseCharacterSet::Latin, new_set);
+                }
+                MorseCharacterSet::Numbers => {
+                    characters.insert(MorseCharacterSet::Numbers, set_map.clone());
+                }
 
-    if let Some(set_1) = base_characters.get(&MorseCharacterSet::Latin) {
-        let mut new_set_1 = set_1.clone();
-        new_set_1.insert(options.separator, options.space.to_string());
-        characters.insert(MorseCharacterSet::Latin, new_set_1);
+                _ => {
+                    characters.insert(set, set_map.clone());
+                }
+            }
+        }
     }
 
     characters
@@ -890,7 +921,7 @@ fn get_characters(options: Options) -> Characters {
 /// A `Characters` map where each key is a `MorseCharacterSet` and each value is a `BTreeMap` of characters and their updated Morse code representations.
 fn get_mapped_characters(options: Options) -> Characters {
     let mut mapped = BTreeMap::new();
-    let characters = get_characters(options);
+    let characters = get_characters(&options);
 
     for (set, chars) in &characters {
         let mut new_set = BTreeMap::new();
@@ -935,8 +966,20 @@ mod tests {
 
     #[test]
     fn encodes_english_alphabet() {
-        assert_eq!(MorseCode::default().encode("the quick brown fox jumps over the lazy dog"), "- .... . / --.- ..- .. -.-. -.- / -... .-. --- .-- -. / ..-. --- -..- / .--- ..- -- .--. ... / --- ...- . .-. / - .... . / .-.. .- --.. -.-- / -.. --- --.");
-        assert_eq!(MorseCode::new(Options { dash: '–', dot: '•', space: '\\', ..Default::default() }).encode("the quick brown fox jumps over the lazy dog"), "– •••• • \\ ––•– ••– •• –•–• –•– \\ –••• •–• ––– •–– –• \\ ••–• ––– –••– \\ •––– ••– –– •––• ••• \\ ––– •••– • •–• \\ – •••• • \\ •–•• •– ––•• –•–– \\ –•• ––– ––•");
+        assert_eq!(
+            MorseCode::default().encode("the quick brown fox jumps over the lazy dog"),
+            "- .... . / --.- ..- .. -.-. -.- / -... .-. --- .-- -. / ..-. --- -..- / .--- ..- -- .--. ... / --- ...- . .-. / - .... . / .-.. .- --.. -.-- / -.. --- --."
+        );
+        assert_eq!(
+            MorseCode::new(Options {
+                dash: '–',
+                dot: '•',
+                space: '\\',
+                ..Default::default()
+            })
+            .encode("the quick brown fox jumps over the lazy dog"),
+            "– •••• • \\ ––•– ••– •• –•–• –•– \\ –••• •–• ––– •–– –• \\ ••–• ––– –••– \\ •––– ••– –– •––• ••• \\ ––– •••– • •–• \\ – •••• • \\ •–•• •– ––•• –•–– \\ –•• ––– ––•"
+        );
     }
 
     #[test]
