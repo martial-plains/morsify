@@ -63,6 +63,7 @@
 //!         MorseCharacterSet::Numbers,
 //!         MorseCharacterSet::Punctuation,
 //!     ],
+//!     ..Options::default()
 //!     // Other options can be set here
 //! };
 //! ```
